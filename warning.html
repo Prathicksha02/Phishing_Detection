@@ -1,0 +1,153 @@
+Phishing Warning
+  
+  
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+      background-color: #f8d7da;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #721c24;
+    }
+    .warning-icon {
+      font-size: 72px;
+      margin-bottom: 20px;
+    }
+    .url-display {
+      word-break: break-all;
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    .actions {
+      margin-top: 30px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 0 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .back-button {
+      background-color: #6c757d;
+      color: white;
+    }
+    .proceed-button {
+      background-color: #dc3545;
+      color: white;
+    }
+    .details {
+      margin-top: 30px;
+      text-align: left;
+    }
+    .details h3 {
+      color: #721c24;
+    }
+    ul {
+      padding-left: 20px;
+    }
+  
+
+
+  
+    ⚠️
+    Warning: Potential Phishing Detected
+    The URL you are trying to visit appears to be suspicious and may be a phishing attempt.
+    
+    
+      URL: 
+    
+    
+    
+      Why this URL was blocked:
+      Loading details...
+    
+    
+    
+      Go Back (Safe)
+      Proceed Anyway (Not Recommended)
+    
+    
+    
+      Phishing websites can steal your personal information like passwords and credit card details.
+      If you believe this is a false detection, you can report it in the extension settings.
+    
+  
+  
+  
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get the URL from query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const dangerousUrl = urlParams.get('url');
+      
+      // Display the URL
+      document.getElementById('dangerous-url').textContent = dangerousUrl || '[URL not provided]';
+      
+      // Set up back button
+      document.getElementById('back-button').addEventListener('click', function() {
+        history.back();
+      });
+      
+      // Set up proceed button (with warning)
+      document.getElementById('proceed-button').addEventListener('click', function() {
+        if (confirm('Are you sure you want to proceed to this potentially dangerous website? This is not recommended and could put your personal information at risk.')) {
+          window.location.href = dangerousUrl;
+        }
+      });
+      
+      // Get details about why the URL was blocked
+      if (dangerousUrl) {
+        chrome.runtime.sendMessage(
+          { action: 'checkURL', url: dangerousUrl },
+          function(response) {
+            if (response && !response.error) {
+              let detailsHTML = '';
+              
+              if (response.analysis && response.analysis.suspicious_elements) {
+                response.analysis.suspicious_elements.forEach(element => {
+                  let readableElement = element;
+                  
+                  // Make elements more readable
+                  if (element === 'not_https') readableElement = 'The site does not use a secure connection (HTTPS)';
+                  if (element === 'ip_address') readableElement = 'The URL uses an IP address instead of a domain name';
+                  if (element === 'long_url') readableElement = 'The URL is unusually long, which is common in phishing attempts';
+                  if (element === 'multiple_subdomains') readableElement = 'The URL contains multiple subdomains, which can be suspicious';
+                  if (element === 'blacklisted') readableElement = 'The domain is known to be malicious and is blacklisted';
+                  if (element.startsWith('keyword_')) readableElement = `Contains suspicious keyword: "${element.replace('keyword_', '')}"`;
+                  
+                  detailsHTML += `${readableElement}`;
+                });
+              }
+              
+              // If ML model gave high confidence
+              if (response.confidence > 0.7) {
+                detailsHTML += `Our machine learning model identified this as likely phishing (${Math.round(response.confidence * 100)}% confidence)`;
+              }
+              
+              // Add decoded URL info if applicable
+              if (response.is_encoded && response.decoded_url) {
+                detailsHTML += `URL appears to be encoded to hide its true destination`;
+              }
+              
+              detailsHTML += '';
+              document.getElementById('detection-reasons').innerHTML = detailsHTML;
+            } else {
+              document.getElementById('detection-reasons').innerHTML = 'Unable to retrieve detailed information.';
+            }
+          }
+        );
+      }
+    });
